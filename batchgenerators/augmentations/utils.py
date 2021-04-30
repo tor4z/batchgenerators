@@ -15,9 +15,11 @@
 from __future__ import print_function
 from builtins import range, zip
 import random
+
+import numpy
 import numpy as np
 from copy import deepcopy
-from scipy.ndimage import map_coordinates
+from scipy.ndimage import map_coordinates, fourier_gaussian
 from scipy.ndimage.filters import gaussian_filter, gaussian_gradient_magnitude
 from scipy.ndimage.morphology import grey_dilation
 from skimage.transform import resize
@@ -97,8 +99,11 @@ def elastic_deform_coordinates_2(coordinates, sigmas, magnitudes):
     n_dim = len(coordinates)
     offsets = []
     for d in range(n_dim):
-        offsets.append(
-            gaussian_filter((np.random.random(coordinates.shape[1:]) * 2 - 1), sigmas, mode="constant", cval=0))
+        random_values = np.random.random(coordinates.shape[1:]) * 2 - 1
+        random_values_ = numpy.fft.fftn(random_values)
+        deformation_field = fourier_gaussian(random_values_, sigmas)
+        deformation_field = numpy.fft.ifftn(deformation_field).real
+        offsets.append(deformation_field)
         mx = np.max(np.abs(offsets[-1]))
         offsets[-1] = offsets[-1] / (mx / (magnitudes[d] + 1e-8))
     offsets = np.array(offsets)
@@ -563,7 +568,7 @@ def convert_seg_to_bounding_box_coordinates(data_dict, dim, get_rois_from_seg_fl
 
         data_dict['bb_target'] = np.array(bb_target)
         data_dict['roi_masks'] = np.array(roi_masks)
-        data_dict['roi_labels'] = np.array(roi_labels)
+        data_dict['class_target'] = np.array(roi_labels)
         data_dict['seg'] = out_seg
 
         return data_dict

@@ -43,8 +43,8 @@ class TestDataLoader(unittest.TestCase):
                 for i in dl:
                     idx += i
 
-                assert len(idx) == len(data)
-                assert all([i == j for i,j in zip(idx, data)])
+                self.assertTrue(len(idx) == len(data))
+                self.assertTrue(all([i == j for i,j in zip(idx, data)]))
 
     def test_return_all_indices_single_threaded_shuffle_True(self):
         data = list(range(123))
@@ -59,12 +59,12 @@ class TestDataLoader(unittest.TestCase):
                 for i in dl:
                     idx += i
 
-                assert len(idx) == len(data)
+                self.assertTrue(len(idx) == len(data))
 
-                assert not all([i == j for i, j in zip(idx, data)])
+                self.assertTrue(not all([i == j for i, j in zip(idx, data)]))
 
                 idx.sort()
-                assert all([i == j for i,j in zip(idx, data)])
+                self.assertTrue(all([i == j for i,j in zip(idx, data)]))
 
     def test_infinite_single_threaded(self):
         data = list(range(123))
@@ -93,8 +93,8 @@ class TestDataLoader(unittest.TestCase):
             assert len(i) == batch_size
             total += batch_size
 
-        assert total == 120
-        assert ctr == 10
+        self.assertTrue(total == 120)
+        self.assertTrue(ctr == 10)
 
         dl = DummyDataLoader(deepcopy(data), batch_size, 1, 1, return_incomplete=True, shuffle=False, infinite=False)
         # this should now not raise a StopIteration anymore
@@ -104,8 +104,8 @@ class TestDataLoader(unittest.TestCase):
             ctr += 1
             total += len(i)
 
-        assert total == 123
-        assert ctr == 11
+        self.assertTrue(total == 123)
+        self.assertTrue(ctr == 11)
 
     def test_return_all_indices_multi_threaded_shuffle_False(self):
         data = list(range(123))
@@ -121,8 +121,8 @@ class TestDataLoader(unittest.TestCase):
                 for i in mt:
                     idx += i
 
-                assert len(idx) == len(data)
-                assert all([i == j for i,j in zip(idx, data)])
+                self.assertTrue(len(idx) == len(data))
+                self.assertTrue(all([i == j for i,j in zip(idx, data)]))
 
     def test_return_all_indices_multi_threaded_shuffle_True(self):
         data = list(range(123))
@@ -138,12 +138,12 @@ class TestDataLoader(unittest.TestCase):
                 for i in mt:
                     idx += i
 
-                assert len(idx) == len(data)
+                self.assertTrue(len(idx) == len(data))
 
-                assert not all([i == j for i, j in zip(idx, data)])
+                self.assertTrue(not all([i == j for i, j in zip(idx, data)]))
 
                 idx.sort()
-                assert all([i == j for i,j in zip(idx, data)])
+                self.assertTrue(all([i == j for i,j in zip(idx, data)]))
 
     def test_infinite_multi_threaded(self):
         data = list(range(123))
@@ -170,28 +170,88 @@ class TestDataLoader(unittest.TestCase):
 
         dl = DummyDataLoader(deepcopy(data), batch_size, num_workers, 1, return_incomplete=False, shuffle=False, infinite=False)
         mt = MultiThreadedAugmenter(dl, None, num_workers, 1, None, False)
-        # this should now not raise a StopIteration anymore
+        all_return = []
         total = 0
         ctr = 0
         for i in mt:
             ctr += 1
             assert len(i) == batch_size
-            total += batch_size
+            total += len(i)
+            all_return += i
 
-        assert total == 120
-        assert ctr == 10
+        self.assertTrue(total == 120)
+        self.assertTrue(ctr == 10)
+        self.assertTrue(len(np.unique(all_return)) == total)
 
         dl = DummyDataLoader(deepcopy(data), batch_size, num_workers, 1, return_incomplete=True, shuffle=False, infinite=False)
         mt = MultiThreadedAugmenter(dl, None, num_workers, 1, None, False)
-        # this should now not raise a StopIteration anymore
+        all_return = []
         total = 0
         ctr = 0
         for i in mt:
             ctr += 1
             total += len(i)
+            all_return += i
 
-        assert total == 123
-        assert ctr == 11
+        self.assertTrue(total == 123)
+        self.assertTrue(ctr == 11)
+        self.assertTrue(len(np.unique(all_return)) == len(data))
+
+    def test_thoroughly(self):
+        data_list = [list(range(123)),
+            list(range(1243)),
+            list(range(1)),
+            list(range(7)),
+                     ]
+        worker_list = (1, 4, 7)
+        batch_size_list = (1, 3, 32)
+        seed_list = [318, None]
+        epochs = 3
+
+        for data in data_list:
+            #print('data', len(data))
+            for num_workers in worker_list:
+                #print('num_workers', num_workers)
+                for batch_size in batch_size_list:
+                    #print('batch_size', batch_size)
+                    for return_incomplete in [True, False]:
+                        #print('return_incomplete', return_incomplete)
+                        for shuffle in [True, False]:
+                            #print('shuffle', shuffle)
+                            for seed_for_shuffle in seed_list:
+                                #print('seed_for_shuffle', seed_for_shuffle)
+                                if return_incomplete:
+                                    if len(data) % batch_size == 0:
+                                        expected_num_batches = len(data) // batch_size
+                                    else:
+                                        expected_num_batches = len(data) // batch_size + 1
+                                else:
+                                    expected_num_batches = len(data) // batch_size
+
+                                expected_num_items = len(data) if return_incomplete else expected_num_batches * batch_size
+
+                                print("init")
+                                dl = DummyDataLoader(deepcopy(data), batch_size, num_workers, seed_for_shuffle,
+                                                     return_incomplete=return_incomplete, shuffle=shuffle,
+                                                     infinite=False)
+
+                                mt = MultiThreadedAugmenter(dl, None, num_workers, 5, None, False, wait_time=0)
+                                mt._start()
+
+                                for epoch in range(epochs):
+                                    print("sampling")
+                                    all_return = []
+                                    total = 0
+                                    ctr = 0
+                                    for i in mt:
+                                        ctr += 1
+                                        total += len(i)
+                                        all_return += i
+
+                                    print('asserting')
+                                    self.assertTrue(total == expected_num_items)
+                                    self.assertTrue(ctr == expected_num_batches)
+                                    self.assertTrue(len(np.unique(all_return)) == expected_num_items)
 
 
 if __name__ == "__main__":

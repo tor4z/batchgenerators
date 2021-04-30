@@ -192,7 +192,8 @@ def augment_spatial(data, seg, patch_size, patch_center_dist_from_border=30,
                     do_rotation=True, angle_x=(0, 2 * np.pi), angle_y=(0, 2 * np.pi), angle_z=(0, 2 * np.pi),
                     do_scale=True, scale=(0.75, 1.25), border_mode_data='nearest', border_cval_data=0, order_data=3,
                     border_mode_seg='constant', border_cval_seg=0, order_seg=0, random_crop=True, p_el_per_sample=1,
-                    p_scale_per_sample=1, p_rot_per_sample=1, independent_scale_for_each_axis=False):
+                    p_scale_per_sample=1, p_rot_per_sample=1, independent_scale_for_each_axis=False,
+                    p_rot_per_axis: float = 1, p_independent_scale_per_axis: int = 1):
     dim = len(patch_size)
     seg_result = None
     if seg is not None:
@@ -210,7 +211,7 @@ def augment_spatial(data, seg, patch_size, patch_center_dist_from_border=30,
 
     if not isinstance(patch_center_dist_from_border, (list, tuple, np.ndarray)):
         patch_center_dist_from_border = dim * [patch_center_dist_from_border]
-        
+
     for sample_id in range(data.shape[0]):
         coords = create_zero_centered_coordinate_mesh(patch_size)
         modified_coords = False
@@ -222,41 +223,46 @@ def augment_spatial(data, seg, patch_size, patch_center_dist_from_border=30,
             modified_coords = True
 
         if do_rotation and np.random.uniform() < p_rot_per_sample:
-            if angle_x[0] == angle_x[1]:
-                a_x = angle_x[0]
-            else:
+
+            if np.random.uniform() <= p_rot_per_axis:
                 a_x = np.random.uniform(angle_x[0], angle_x[1])
+            else:
+                a_x = 0
+
             if dim == 3:
-                if angle_y[0] == angle_y[1]:
-                    a_y = angle_y[0]
-                else:
+                if np.random.uniform() <= p_rot_per_axis:
                     a_y = np.random.uniform(angle_y[0], angle_y[1])
-                if angle_z[0] == angle_z[1]:
-                    a_z = angle_z[0]
                 else:
+                    a_y = 0
+
+                if np.random.uniform() <= p_rot_per_axis:
                     a_z = np.random.uniform(angle_z[0], angle_z[1])
+                else:
+                    a_z = 0
+
                 coords = rotate_coords_3d(coords, a_x, a_y, a_z)
             else:
                 coords = rotate_coords_2d(coords, a_x)
             modified_coords = True
 
         if do_scale and np.random.uniform() < p_scale_per_sample:
-            if not independent_scale_for_each_axis:
-                if np.random.random() < 0.5 and scale[0] < 1:
-                    sc = np.random.uniform(scale[0], 1)
-                else:
-                    sc = np.random.uniform(max(scale[0], 1), scale[1])
-            else:
+            if independent_scale_for_each_axis and np.random.uniform() < p_independent_scale_per_axis:
                 sc = []
                 for _ in range(dim):
                     if np.random.random() < 0.5 and scale[0] < 1:
                         sc.append(np.random.uniform(scale[0], 1))
                     else:
                         sc.append(np.random.uniform(max(scale[0], 1), scale[1]))
+            else:
+                if np.random.random() < 0.5 and scale[0] < 1:
+                    sc = np.random.uniform(scale[0], 1)
+                else:
+                    sc = np.random.uniform(max(scale[0], 1), scale[1])
+
             coords = scale_coords(coords, sc)
             modified_coords = True
 
-        # now find a nice center location
+        # now find a nice center location 
         if modified_coords:
             for d in range(dim):
                 if random_crop:
@@ -271,7 +277,8 @@ def augment_spatial(data, seg, patch_size, patch_center_dist_from_border=30,
             if seg is not None:
                 for channel_id in range(seg.shape[1]):
                     seg_result[sample_id, channel_id] = interpolate_img(seg[sample_id, channel_id], coords, order_seg,
-                                                                        border_mode_seg, cval=border_cval_seg, is_seg=True)
+                                                                        border_mode_seg, cval=border_cval_seg,
+                                                                        is_seg=True)
         else:
             if seg is None:
                 s = None
@@ -289,11 +296,12 @@ def augment_spatial(data, seg, patch_size, patch_center_dist_from_border=30,
 
 
 def augment_spatial_2(data, seg, patch_size, patch_center_dist_from_border=30,
-                    do_elastic_deform=True, deformation_scale=(0, 0.25),
-                    do_rotation=True, angle_x=(0, 2 * np.pi), angle_y=(0, 2 * np.pi), angle_z=(0, 2 * np.pi),
-                    do_scale=True, scale=(0.75, 1.25), border_mode_data='nearest', border_cval_data=0, order_data=3,
-                    border_mode_seg='constant', border_cval_seg=0, order_seg=0, random_crop=True, p_el_per_sample=1,
-                    p_scale_per_sample=1, p_rot_per_sample=1):
+                      do_elastic_deform=True, deformation_scale=(0, 0.25),
+                      do_rotation=True, angle_x=(0, 2 * np.pi), angle_y=(0, 2 * np.pi), angle_z=(0, 2 * np.pi),
+                      do_scale=True, scale=(0.75, 1.25), border_mode_data='nearest', border_cval_data=0, order_data=3,
+                      border_mode_seg='constant', border_cval_seg=0, order_seg=0, random_crop=True, p_el_per_sample=1,
+                      p_scale_per_sample=1, p_rot_per_sample=1, independent_scale_for_each_axis=False,
+                      p_rot_per_axis: float = 1, p_independent_scale_per_axis: int = 1):
     """
 
     :param data:
@@ -323,6 +331,8 @@ def augment_spatial_2(data, seg, patch_size, patch_center_dist_from_border=30,
     :param p_rot_per_sample:
     :param clip_to_safe_magnitude:
     :return:
+
+
     """
     dim = len(patch_size)
     seg_result = None
@@ -364,41 +374,54 @@ def augment_spatial_2(data, seg, patch_size, patch_center_dist_from_border=30,
                 # the magnitude needs to depend on the scale, otherwise not much is going to happen most of the time.
                 # we want the magnitude to be high, but not higher than max_magnitude (otherwise the deformations
                 # become very ugly). Let's sample mag_real with a gaussian
-                #mag_real = np.random.normal(max_magnitude * (2 / 3), scale=max_magnitude / 3)
+                # mag_real = np.random.normal(max_magnitude * (2 / 3), scale=max_magnitude / 3)
                 # clip to make sure we stay reasonable
-                #mag_real = np.clip(mag_real, 0, max_magnitude)
+                # mag_real = np.clip(mag_real, 0, max_magnitude)
 
                 mag_real = np.random.uniform(min_magnitude, max_magnitude)
 
                 mag.append(mag_real)
-            #print(np.round(sigmas, decimals=3), np.round(mag, decimals=3))
+            # print(np.round(sigmas, decimals=3), np.round(mag, decimals=3))
             coords = elastic_deform_coordinates_2(coords, sigmas, mag)
             modified_coords = True
 
-        if np.random.uniform() < p_rot_per_sample and do_rotation:
-            if angle_x[0] == angle_x[1]:
-                a_x = angle_x[0]
-            else:
+        if do_rotation and np.random.uniform() < p_rot_per_sample:
+
+            if np.random.uniform() <= p_rot_per_axis:
                 a_x = np.random.uniform(angle_x[0], angle_x[1])
+            else:
+                a_x = 0
+
             if dim == 3:
-                if angle_y[0] == angle_y[1]:
-                    a_y = angle_y[0]
-                else:
+                if np.random.uniform() <= p_rot_per_axis:
                     a_y = np.random.uniform(angle_y[0], angle_y[1])
-                if angle_z[0] == angle_z[1]:
-                    a_z = angle_z[0]
                 else:
+                    a_y = 0
+
+                if np.random.uniform() <= p_rot_per_axis:
                     a_z = np.random.uniform(angle_z[0], angle_z[1])
+                else:
+                    a_z = 0
+
                 coords = rotate_coords_3d(coords, a_x, a_y, a_z)
             else:
                 coords = rotate_coords_2d(coords, a_x)
             modified_coords = True
 
-        if np.random.uniform() < p_scale_per_sample and do_scale:
-            if np.random.random() < 0.5 and scale[0] < 1:
-                sc = np.random.uniform(scale[0], 1)
+        if do_scale and np.random.uniform() < p_scale_per_sample:
+            if independent_scale_for_each_axis and np.random.uniform() < p_independent_scale_per_axis:
+                sc = []
+                for _ in range(dim):
+                    if np.random.random() < 0.5 and scale[0] < 1:
+                        sc.append(np.random.uniform(scale[0], 1))
+                    else:
+                        sc.append(np.random.uniform(max(scale[0], 1), scale[1]))
             else:
-                sc = np.random.uniform(max(scale[0], 1), scale[1])
+                if np.random.random() < 0.5 and scale[0] < 1:
+                    sc = np.random.uniform(scale[0], 1)
+                else:
+                    sc = np.random.uniform(max(scale[0], 1), scale[1])
+
             coords = scale_coords(coords, sc)
             modified_coords = True
 
@@ -421,7 +444,8 @@ def augment_spatial_2(data, seg, patch_size, patch_center_dist_from_border=30,
             if seg is not None:
                 for channel_id in range(seg.shape[1]):
                     seg_result[sample_id, channel_id] = interpolate_img(seg[sample_id, channel_id], coords, order_seg,
-                                                                        border_mode_seg, cval=border_cval_seg, is_seg=True)
+                                                                        border_mode_seg, cval=border_cval_seg,
+                                                                        is_seg=True)
         else:
             if seg is None:
                 s = None
@@ -436,7 +460,6 @@ def augment_spatial_2(data, seg, patch_size, patch_center_dist_from_border=30,
             if seg is not None:
                 seg_result[sample_id] = s[0]
     return data_result, seg_result
-
 
 
 def augment_transpose_axes(data_sample, seg_sample, axes=(0, 1, 2)):

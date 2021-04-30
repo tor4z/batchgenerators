@@ -4,9 +4,17 @@ Research Center (DKFZ) to suit all our deep learning data augmentation needs.
 It is not (yet) perfect, but we feel it is good enough to be shared with the community. If you encounter bug, feel free
 to contact us or open a github issue.
 
+If you use it please cite the following work:
+```
+Isensee Fabian, Jäger Paul, Wasserthal Jakob, Zimmerer David, Petersen Jens, Kohl Simon, 
+Schock Justus, Klein Andre, Roß Tobias, Wirkert Sebastian, Neher Peter, Dinkelacker Stefan, 
+Köhler Gregor, Maier-Hein Klaus (2020). batchgenerators - a python framework for data 
+augmentation. doi:10.5281/zenodo.3632567
+```
+
 [![Build Status](https://travis-ci.org/MIC-DKFZ/batchgenerators.svg?branch=master)](https://travis-ci.org/MIC-DKFZ/batchgenerators)
 
-## Suported Augmentations
+## Supported Augmentations
 We supports a variety of augmentations, all of which are compatible with **2D and 3D input data**! (This is something
 that was missing in most other frameworks).
 
@@ -91,7 +99,11 @@ This is not required on Linux.
 
 
 ## Release Notes
+(only highlights, not an exhaustive list)
 
+- 0.20.0: fixed an issue with MultiThreadedAugmenter not terminating properly after KeyboardInterrupt; Fixed an error 
+with the number and order of samples being returned when pin_memory=True; Improved performance by always hiding 
+process-process communication bottleneck through threading
 - 0.19.5: fixed OMP_NUM_THREADS issue by using threadpoolctl package; dropped python 2 support (threadpoolctl is not 
 available for python 2)
 - 0.19:

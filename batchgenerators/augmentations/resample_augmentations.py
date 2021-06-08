@@ -85,18 +85,9 @@ def augment_linear_downsampling_scipy(data_sample, zoom_range=(0.5, 1), per_chan
                     for i in ignore_axes:
                         target_shape[i] = shp[i]
 
-            downsampled = resize(data_sample[c].astype(float), target_shape, order=order_downsample, mode='edge',
-                                 anti_aliasing=False)
+            downsampled = resize(data_sample[c].astype(float), target_shape, order=order_downsample,
+                                 mode='edge', anti_aliasing=False)
             data_sample[c] = resize(downsampled, shp, order=order_upsample, mode='edge',
                                     anti_aliasing=False)
 
     return data_sample
-
-
-
-
-
-
-
-
-

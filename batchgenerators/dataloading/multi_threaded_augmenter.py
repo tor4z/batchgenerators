@@ -51,6 +51,9 @@ def producer(queue, data_loader, transform, thread_id, seed, abort_event, wait_t
                 if item is None:
                     try:
                         item = next(data_loader)
+                        # print(item.keys())
+                        # print(item['data'].shape)
+                        # print(item['seg'].shape)
                         if transform is not None:
                             item = transform(**item)
                     except StopIteration:

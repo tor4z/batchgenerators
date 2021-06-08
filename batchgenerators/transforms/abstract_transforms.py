@@ -85,6 +85,7 @@ class Compose(AbstractTransform):
 
     def __call__(self, **data_dict):
         for t in self.transforms:
+            # print(f't: {t} {data_dict["data"].shape}, {data_dict["seg"].shape}')
             data_dict = t(**data_dict)
         return data_dict
 

@@ -450,6 +450,7 @@ class SpatialTransform_2(AbstractTransform):
         data = data_dict.get(self.data_key)
         seg = data_dict.get(self.label_key)
 
+        # print(f'SpatialTransform_2, {data.shape}, {seg.shape}')
         if self.patch_size is None:
             if len(data.shape) == 4:
                 patch_size = (data.shape[2], data.shape[3])

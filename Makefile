@@ -14,6 +14,10 @@ install:
 dist: clean
 	python setup.py sdist
 
+
+build: dist
+
+
 documentation:
 	sphinx-apidoc -e -f DeepLearningBatchGeneratorUtils -o doc/
 
